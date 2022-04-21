@@ -39,7 +39,7 @@ class _MedviewPageState extends State<MedviewPage> {
     otcdrugs = userdbHelper.getOTCDrugs();
   }
 
-  Widget _medication(Prescription presc) {
+  Widget _prescMedication(Prescription presc) {
     Icon pinIcon = Icon(Icons.push_pin_outlined);
     if (presc.pinned != null && presc.pinned == true) {
       pinIcon = Icon(Icons.push_pin);
@@ -111,7 +111,6 @@ class _MedviewPageState extends State<MedviewPage> {
     );
   }
 
-/*
   Widget _otcMedication(OTCDrug otcDrug) {
     return Container(
       height: 150,
@@ -140,37 +139,6 @@ class _MedviewPageState extends State<MedviewPage> {
     );
   }
 
-  Widget _prescMedication(Prescription presc) {
-    return Container(
-      height: 150,
-      width: double.infinity,
-      margin: const EdgeInsets.all(5),
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: CupertinoColors.lightBackgroundGray,
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(presc.name,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(presc.totalAmount.toString()),
-              Text(presc.unit),
-              Text(presc.daySupply.toString()),
-              Text(presc.fillDate.toString()),
-              Text(presc.details!),
-            ]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  */
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -196,7 +164,7 @@ class _MedviewPageState extends State<MedviewPage> {
                   itemCount: snapshot.data!.length,
                   itemBuilder: (context, index) {
                     return Dismissible(
-                      child: _medication(snapshot.data![index]),
+                      child: _prescMedication(snapshot.data![index]),
                       key: UniqueKey(),
                       onDismissed: (DismissDirection direction) {
                         userdbHelper.deletePrescription(snapshot.data![index]);
