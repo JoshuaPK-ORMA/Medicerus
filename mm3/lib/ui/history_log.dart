@@ -21,46 +21,100 @@ import 'package:flutter/material.dart';
 import '../drug.dart';
 import '../medlog.dart';
 import '../userDbHelper.dart';
+import 'package:intl/intl.dart';
 
-class HistoryLogPage extends StatelessWidget {
+class HistoryLogPage extends StatefulWidget {
   HistoryLogPage({
     Key? key,
   }) : super(key: key);
+  @override
+  _HistoryLogPage createState() => _HistoryLogPage();
+}
+
+class _HistoryLogPage extends State<HistoryLogPage> {
   final userdbHelper = UserDatabaseHelper.instance;
+  late Future<List<MedLog>> loglist;
+  String searchQuery = '';
+
+  @protected
+  @mustCallSuper
+  void initState() {
+    loglist = userdbHelper.getMedLog();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('History Log'),
       ),
-      body: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(children: <Widget>[
-            historyLogDisplay()
-            //medDisplayWidgetCurrent(searchQuery),
-            // const Spacer(),
-          ])),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // _insertPrescription();
-          _insertMedLog();
-        },
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+      body: Column(
+        children: [
+          AppBar(
+            backgroundColor: Colors.indigo[900],
+            title: TextField(
+              decoration: InputDecoration(
+                hintText: 'Search log',
+                hintStyle: TextStyle(
+                  color: Colors.black54,
+                  fontSize: 18,
+                  fontStyle: FontStyle.italic,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                fillColor: Colors.white,
+                filled: true,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 7.0, horizontal: 10.0),
+              ),
+              style: TextStyle(
+                color: Colors.black,
+              ),
+              onChanged: (text) {
+                searchQuery = text;
+              },
+              onSubmitted: (text) {
+                setState(() {
+                  searchQuery = text;
+                  loglist = userdbHelper.searchMedLog(searchQuery);
+                });
+              },
+            ),
+            automaticallyImplyLeading: false,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: () {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  setState(() {
+                    searchQuery = searchQuery;
+                    loglist = userdbHelper.searchMedLog(searchQuery);
+                  });
+                },
+              )
+            ],
+          ),
+          Expanded(
+            child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(children: <Widget>[historyLogDisplay()])),
+          )
+        ],
       ),
     );
   }
 
   Widget historyLogDisplay() {
-    print('runquery');
-    Future<List<MedLog>> logs = this.userdbHelper.getMedLog();
-    //Future<int> druglistlength = _setDrugListLength(drugs);
     return FutureBuilder(
-      future: logs,
+      future: loglist,
       builder: (BuildContext context, AsyncSnapshot<List<MedLog>> snapshot) {
         if (snapshot.hasData) {
           if (snapshot.data!.isEmpty) {
             return Container(
+                // resizeToAvoidBottomInset: false,
                 height: 450,
                 child: const Text(
                   'No logged medications.',
@@ -106,67 +160,72 @@ class HistoryLogPage extends StatelessWidget {
   }
 
   Widget medLogDisplayLine(MedLog log) {
-// String medType = '';
-//     if (drug.prodTypeName.toLowerCase() == 'human otc drug') {
-//       medType = 'Over the Counter';
-//     } else {
-//       medType = 'Prescription Drug';
-//     }
+    String substancename = '';
+    if (log.substanceName != null) {
+      substancename = log.substanceName!;
+    }
     return Builder(builder: (BuildContext context) {
       return Row(
-        mainAxisAlignment: MainAxisAlignment.start,
+        //mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          // Container(constraints: BoxConstraints(maxWidth: 25), child: Icons.medIcon),
+          Expanded(
+            child:
+                // Container(constraints: BoxConstraints(maxWidth: 25), child: Icons.medIcon),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                  //width: 325,
+                  padding: const EdgeInsets.only(
+                      left: 5, bottom: 5, right: 5, top: 15),
+                  child: Text(
+                    log.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.left,
+                  )), //),
+              Container(
+                  //width: 325,
+                  padding: const EdgeInsets.only(
+                      left: 5, bottom: 5, right: 5, top: 5),
+                  child: Text(
+                    log.amounttaken.toString() + ' ' + log.unit,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[500],
+                    ),
+                    textAlign: TextAlign.left,
+                  )),
+              Container(
+                  //width: 325,
+                  padding: const EdgeInsets.only(
+                      left: 5, bottom: 5, right: 5, top: 5),
+                  child: Text(
+                    substancename,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[500],
+                    ),
+                    textAlign: TextAlign.left,
+                  ))
+            ]),
+          ),
           Column(children: [
             Container(
-                width: 325,
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                //child: new Flexible(
-                //padding: const EdgeInsets.all(20.0),
+                //width: 325,
+                padding: const EdgeInsets.only(
+                    left: 10, bottom: 5, right: 5, top: 5),
                 child: Text(
-                  log.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.black,
-                  ),
-                  textAlign: TextAlign.left,
-                )), //),
-            Container(
-                width: 325,
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                //child: new Flexible(
-                child: Text(
-                  log.timetaken,
+                  DateFormat.yMd()
+                      .add_jm()
+                      .format(DateTime.parse(log.timetaken)),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[700],
                   ),
-                  textAlign: TextAlign.left,
-                )), //),
-            Container(
-                width: 325,
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                //child: new Flexible(
-                child: Text(
-                  log.amounttaken.toString() + ' ' + log.unit,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[500],
-                  ),
-                  textAlign: TextAlign.left,
-                )),
-            // Container(
-            //     width: 325,
-            //     padding: const EdgeInsets.symmetric(vertical: 2),
-            //     //child: new Flexible(
-            //     child: Text(
-            //       log.unit,
-            //       style: TextStyle(
-            //         fontSize: 14,
-            //         color: Colors.grey[500],
-            //       ),
-            //       textAlign: TextAlign.left,
-            //     )),
+                  textAlign: TextAlign.right,
+                ))
           ]),
         ],
       );
@@ -175,18 +234,14 @@ class HistoryLogPage extends StatelessWidget {
 
   _insertMedLog() async {
     MedLog testlog = MedLog(
-        name: 'drug name',
+        name: 'other drug name',
         timetaken: DateTime.now().toString(),
         prescriptionstatus: false,
         prescid: 2,
         otcid: null,
         amounttaken: 20,
         unit: 'mg',
-        substanceName: 'subtance yeahhhhhh');
+        substanceName: 'acetaminophen');
     userdbHelper.insertOrUpdateMedLog(testlog);
-    //   Database db = await UserDatabaseHelper.instance.database;
-    //   db.execute(
-    //       '''INSERT INTO prescriptions (name, totalamount, unit, daysupply, rxnumber, filldate, expdate, details, substancename)
-    // VALUES ('Medicine Name', 60, 'mg', 2, 'rx number', '2022-04-11', '2022-05-11', 'take 2 a day', 'some substance');''');
   }
 }

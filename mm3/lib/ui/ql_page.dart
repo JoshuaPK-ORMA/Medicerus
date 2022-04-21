@@ -254,11 +254,11 @@ class _QuicklistPageState extends State<QuicklistPage> {
                     ),
                     value: 0,
                   ),
-                  const PopupMenuItem(
+                  /*const PopupMenuItem(
                       child: ListTile(
                     //leading: Icon(Icons.add),
                     title: Text("Pin to Dashboard"),
-                  )),
+                  )),*/
                 ],
                 //onSelected block found at https://stackoverflow.com/questions/59478364/how-to-use-ontap-or-onpressed-in-popupmenuitem, user no_fate
                 onSelected: (result) {

@@ -21,11 +21,9 @@ import 'package:flutter/material.dart';
 import 'package:medicerus/prescription.dart';
 import 'package:medicerus/userDbHelper.dart';
 import 'package:sqflite/sqflite.dart';
-// import 'package:provider/provider.dart';
-// import 'package:flutter_slidable/flutter_slidable.dart';
 
-// import '../data/drift_database.dart';
-// import 'widget/add_rc_item_input_widget.dart';
+import '../medlog.dart';
+import '../otcdrug.dart';
 
 class DashboardPage extends StatefulWidget {
   @override
@@ -34,140 +32,445 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   final userdbHelper = UserDatabaseHelper.instance;
+  late Future<List<Prescription>> prescriptions;
+  late Future<List<Prescription>> pinnedLoggedPrescriptions;
+  late Future<List<Prescription>> pinnedUnloggedPrescriptions;
+  late Future<List<Prescription>> loggedPrescriptions;
+  late Future<List<Prescription>> unloggedPrescriptions;
+  late Future<List<OTCDrug>> otcDrugs;
+  int numberPinned = 0;
+
+  @protected
+  @mustCallSuper
+  void initState() {
+    prescriptions = userdbHelper.getPrescriptions();
+    loggedPrescriptions = userdbHelper.getLoggedPrescriptions();
+    unloggedPrescriptions = getUnloggedPrescriptions();
+    pinnedLoggedPrescriptions = getPinnedLoggedPrescriptions();
+    pinnedUnloggedPrescriptions = getPinnedUnloggedPrescriptions();
+    otcDrugs = userdbHelper.getOTCDrugs();
+    getNumberPinned().then((value) {
+      if (value != null) {
+        setState(() {
+          numberPinned = value;
+        });
+        print('number pinned: ' + numberPinned.toString());
+      }
+    });
+  }
+
+  Future<int> getNumberPinned() async {
+    int unlogged = await pinnedUnloggedPrescriptions.then((value) {
+      return value.length;
+    });
+    int logged = await pinnedLoggedPrescriptions.then((value) {
+      return value.length;
+    });
+    return unlogged + logged;
+  }
+
+  Future<List<Prescription>> getPinnedLoggedPrescriptions() async {
+    List<Prescription> presc = await loggedPrescriptions;
+    List<Prescription> pinned =
+        presc.where((element) => element.pinned == true).toList();
+    return pinned;
+  }
+
+  Future<List<Prescription>> getPinnedUnloggedPrescriptions() async {
+    List<Prescription> presc = await unloggedPrescriptions;
+    List<Prescription> pinned =
+        presc.where((element) => element.pinned == true).toList();
+    return pinned;
+  }
+
+  Future<List<Prescription>> getUnloggedPrescriptions() async {
+    List<Prescription> presc = await prescriptions;
+    List<Prescription> logged = await loggedPrescriptions;
+    List<Prescription> unlogged =
+        presc.toSet().difference(logged.toSet()).toList();
+    return unlogged;
+  }
+
+  List<Prescription> getLoggedList() {
+    List<Prescription> logged = loggedPrescriptions as List<Prescription>;
+    return logged;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: <Widget>[
-          ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 5.0),
+        appBar: AppBar(
+          title: const Text('Dashboard'),
+          centerTitle: true,
+        ),
+        body: SingleChildScrollView(
+          child: Column(
             children: <Widget>[
-              ListTile(
-                leading: Icon(Icons.medication),
-                tileColor: Colors.lightBlue.shade100,
-                //title: const Center( child:
-                title: const Text('Current Medications'),
-                //)
+              medDisplayPinned(),
+              ListView(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 5.0),
+                children: <Widget>[
+                  ListTile(
+                    leading: Icon(Icons.medication),
+                    tileColor: Colors.grey[700],
+                    title: const Text(
+                      'Current Medications',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                  medDisplayCurrent()
+                ],
               ),
-              // medDisplayCurrent()
+              ListView(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 5.0),
+                children: <Widget>[
+                  ListTile(
+                    tileColor: Colors.grey[700],
+                    leading: Icon(Icons.medication),
+                    title: const Text('Recent Medications'),
+                  ),
+                  medDisplayLogged(),
+                ],
+              ),
             ],
           ),
-          ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 5.0),
-            children: <Widget>[
-              ListTile(
-                tileColor: Colors.lightBlue.shade100,
-                leading: Icon(Icons.medication),
-                //title: const Center( child:
-                title: const Text('Recent Medications'),
-                //)
-              ),
-            ],
+        ));
+  }
+
+  Widget medDisplayPinned() {
+    Widget pinnedTitle;
+    if (numberPinned > 0) {
+      pinnedTitle = ListTile(
+        leading: Icon(Icons.medication),
+        tileColor: Colors.grey[700],
+        title: Text(
+          'Pinned Medications',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 15,
           ),
-        ],
-      ),
+        ),
+      );
+    } else {
+      pinnedTitle = Container();
+    }
+    return Column(
+      children: [
+        pinnedTitle,
+        FutureBuilder(
+            future: pinnedUnloggedPrescriptions,
+            builder: (BuildContext context,
+                AsyncSnapshot<List<Prescription>> snapshot) {
+              if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                return ListView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 5.0),
+                  children: <Widget>[
+                    pinnedListDisplay(snapshot, false),
+                  ],
+                );
+              } else {
+                return Container();
+              }
+            }),
+        FutureBuilder(
+            future: pinnedLoggedPrescriptions,
+            builder: (BuildContext context,
+                AsyncSnapshot<List<Prescription>> snapshot) {
+              if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                return ListView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 5.0),
+                  children: <Widget>[
+                    pinnedListDisplay(snapshot, true),
+                  ],
+                );
+              } else {
+                return Container();
+              }
+            }),
+      ],
     );
   }
 
-  // Widget medDisplayCurrent() {
-  //   print('run query on prescriptions');
-  //   Future<List<Prescription>> prescriptions =
-  //       this.userdbHelper.getPrescriptions();
-  //   // Future<int> druglistlength = _setDrugListLength(drugs);
-  //   return FutureBuilder(
-  //     future: prescriptions,
-  //     builder:
-  //         (BuildContext context, AsyncSnapshot<List<Prescription>> snapshot) {
-  //       if (snapshot.hasData) {
-  //         if (snapshot.data!.isEmpty) {
-  //           return Container(
-  //               height: 450,
-  //               child: const Text(
-  //                 'No current prescriptions.',
-  //                 style: TextStyle(fontSize: 20),
-  //               ));
-  //         }
-  //         return prescriptionListDisplay(snapshot);
-  //       } else {
-  //         return Center(child: CircularProgressIndicator());
-  //       }
-  //     },
-  //   );
-  // }
+  Widget medDisplayLogged() {
+    return FutureBuilder(
+        future: loggedPrescriptions,
+        builder:
+            (BuildContext context, AsyncSnapshot<List<Prescription>> snapshot) {
+          if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+            return ListView(
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 5.0),
+              children: <Widget>[
+                medListDisplay(snapshot, true),
+              ],
+            );
+          } else {
+            return Container();
+          }
+        });
+  }
 
-  // Widget prescriptionListDisplay(AsyncSnapshot<List<Prescription>> presclist) {
-  //   int length = presclist.data!.length;
-  //   int itemDisplayCount = 10;
-  //   return Expanded(
-  //       child: Container(
-  //           height:
-  //               450, //sets height for total list field, prevents overflowing
-  //           child: ListView.builder(
-  //             scrollDirection:
-  //                 Axis.vertical, //allows list to be scrollable vertically
-  //             shrinkWrap: true,
-  //             itemCount: length,
-  //             itemBuilder: (context, position) {
-  //               return Material(
-  //                 child: InkWell(
-  //                     child: Container(
-  //                       width: 50, //sets width for the text boxes
-  //                       alignment: Alignment
-  //                           .centerLeft, //sets text aligned to the left
-  //                       child: displayPrescription(presclist.data![position]),
-  //                       padding: const EdgeInsets.all(3.0),
-  //                       decoration: BoxDecoration(
-  //                           border: Border.all(color: Colors.blueAccent)),
-  //                     ),
-  //                     onTap: () {
-  //                       print(presclist.data![position].name);
-  //                     }),
-  //                 color: Colors.transparent,
-  //               );
-  //             },
-  //           )));
-  // }
+  Widget pinnedListDisplay(
+      AsyncSnapshot<List<Prescription>> presclist, bool logged) {
+    int length = presclist.data!.length;
+    return Container(
+        child: Container(
+            child: ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      scrollDirection: Axis.vertical, //allows list to be scrollable vertically
+      shrinkWrap: true,
+      itemCount: length,
+      itemBuilder: (context, position) {
+        return Material(
+          child: InkWell(
+              child: Container(
+                width: 50, //sets width for the text boxes
+                alignment: Alignment.centerLeft, //sets text aligned to the left
+                child: displayPinnedPrescription(
+                    presclist.data![position], logged),
+                padding: const EdgeInsets.all(3.0),
+                decoration:
+                    BoxDecoration(border: Border.all(color: Colors.blueAccent)),
+              ),
+              onTap: () {}),
+          color: Colors.transparent,
+        );
+      },
+    )));
+  }
 
-  // Widget displayPrescription(Prescription presc) {
-  //   return Builder(builder: (BuildContext context) {
-  //     return Row(mainAxisAlignment: MainAxisAlignment.start, children: [
-  //       Container(
-  //           constraints: BoxConstraints(maxWidth: 25),
-  //           child: Icon(Icons.medication)),
-  //       Column(children: [
-  //         Container(
-  //             width: 325,
-  //             padding: const EdgeInsets.symmetric(vertical: 2),
-  //             //child: new Flexible(
-  //             //padding: const EdgeInsets.all(20.0),
-  //             child: Text(
-  //               presc.name,
-  //               style: const TextStyle(
-  //                 fontSize: 16,
-  //                 color: Colors.black,
-  //               ),
-  //               textAlign: TextAlign.left,
-  //             )), //),
-  //         Container(
-  //             width: 325,
-  //             padding: const EdgeInsets.symmetric(vertical: 2),
-  //             //child: new Flexible(
-  //             child: Text(
-  //               (presc.totalAmount / presc.daySupply).toString(),
-  //               style: TextStyle(
-  //                 fontSize: 16,
-  //                 color: Colors.grey[700],
-  //               ),
-  //               textAlign: TextAlign.left,
-  //             )),
-  //       ])
-  //     ]); //),
-  //   });
-  // }
+  Widget medListDisplay(
+      AsyncSnapshot<List<Prescription>> presclist, bool logged) {
+    int length = presclist.data!.length;
+    return Container(
+        child: Container(
+            child: ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      scrollDirection: Axis.vertical, //allows list to be scrollable vertically
+      shrinkWrap: true,
+      itemCount: length,
+      itemBuilder: (context, position) {
+        return Material(
+          child: InkWell(
+              child: Container(
+                width: 50, //sets width for the text boxes
+                alignment: Alignment.centerLeft, //sets text aligned to the left
+                child: displayPrescription(presclist.data![position], logged),
+                padding: const EdgeInsets.all(3.0),
+                decoration:
+                    BoxDecoration(border: Border.all(color: Colors.blueAccent)),
+              ),
+              onTap: () {
+                // print(presclist.data![position].name);
+              }),
+          color: Colors.transparent,
+        );
+      },
+    )));
+  }
+
+  Widget medDisplayCurrent() {
+    return FutureBuilder(
+      future: unloggedPrescriptions,
+      builder:
+          (BuildContext context, AsyncSnapshot<List<Prescription>> snapshot) {
+        if (snapshot.hasData) {
+          if (snapshot.data!.isEmpty) {
+            return Container(
+                padding: const EdgeInsets.fromLTRB(10.0, 10.0, 0.0, 10.0),
+                child: const Text(
+                  'No prescriptions left to take.',
+                  style: TextStyle(fontSize: 14),
+                ));
+          }
+          return medListDisplay(snapshot, false);
+        } else {
+          return Center(child: CircularProgressIndicator());
+        }
+      },
+    );
+  }
+
+  Widget displayPrescription(Prescription presc, bool logged) {
+    Widget checkbutton;
+    Color backColor = Colors.lightBlue.shade100;
+    if (logged) {
+      backColor = Colors.grey.shade300;
+      checkbutton = Container();
+    } else {
+      checkbutton = SizedBox(
+        height: 30,
+        width: 30,
+        child: IconButton(
+            icon: const Icon(Icons.check),
+            onPressed: () {
+              MedLog newlog = MedLog.withPresc(presc);
+              userdbHelper.insertOrUpdateMedLog(newlog);
+              setState(() {
+                loggedPrescriptions = userdbHelper.getLoggedPrescriptions();
+                unloggedPrescriptions = getUnloggedPrescriptions();
+                pinnedUnloggedPrescriptions = getPinnedUnloggedPrescriptions();
+                pinnedLoggedPrescriptions = getPinnedLoggedPrescriptions();
+              });
+            }),
+      );
+    }
+    return Builder(builder: (BuildContext context) {
+      return Container(
+          color: backColor,
+          child: Row(mainAxisAlignment: MainAxisAlignment.start, children: [
+            Container(
+                constraints: BoxConstraints(maxWidth: 25),
+                child: Icon(Icons.medication)),
+            Column(children: [
+              Container(
+                  width: 325,
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    presc.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black,
+                    ),
+                    textAlign: TextAlign.left,
+                  )),
+              Container(
+                  width: 325,
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    (presc.totalAmount / presc.daySupply).toString() +
+                        ' ' +
+                        presc.unit,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[700],
+                    ),
+                    textAlign: TextAlign.left,
+                  )),
+            ]),
+            checkbutton
+          ]));
+    });
+  }
+
+  Widget displayPinnedPrescription(Prescription presc, bool logged) {
+    Icon pinIcon = Icon(Icons.push_pin_outlined);
+    if (presc.pinned != null && presc.pinned == true) {
+      pinIcon = Icon(Icons.push_pin);
+    }
+    Color backColor = Colors.lightBlue.shade100;
+    Widget logButton;
+    if (logged) {
+      backColor = Colors.grey.shade300;
+      logButton = Container();
+    } else {
+      logButton = Container(
+        // SizedBox(
+        //   height: 30,
+        //   width: 30,
+        child: IconButton(
+            icon: const Icon(Icons.check),
+            onPressed: () {
+              MedLog newlog = MedLog.withPresc(presc);
+              userdbHelper.insertOrUpdateMedLog(newlog);
+              setState(() {
+                loggedPrescriptions = userdbHelper.getLoggedPrescriptions();
+                unloggedPrescriptions = getUnloggedPrescriptions();
+                pinnedLoggedPrescriptions = getPinnedLoggedPrescriptions();
+                pinnedUnloggedPrescriptions = getPinnedUnloggedPrescriptions();
+              });
+            }),
+      );
+    }
+    return Builder(builder: (BuildContext context) {
+      return Container(
+          color: backColor,
+          child: Row(mainAxisAlignment: MainAxisAlignment.start, children: [
+            Column(children: [
+              Container(
+                  padding: const EdgeInsets.only(
+                      left: 4, bottom: 4, right: 4, top: 4),
+                  //margin: EdgeInsets.all(2),
+                  //constraints: BoxConstraints(maxWidth: 25),
+                  //child: Icon(Icons.medication)),
+                  child: IconButton(
+                      icon: pinIcon,
+                      onPressed: () {
+                        presc.pinned = !presc.pinned;
+                        userdbHelper.insertOrUpdatePrescription(presc);
+                        setState(() {
+                          prescriptions = userdbHelper.getPrescriptions();
+                          pinnedLoggedPrescriptions =
+                              getPinnedLoggedPrescriptions();
+                          pinnedUnloggedPrescriptions =
+                              getPinnedUnloggedPrescriptions();
+                        });
+                      })),
+            ]),
+            Column(children: [
+              Container(
+                  //width: 300,
+                  padding: const EdgeInsets.only(
+                      left: 4, bottom: 4, right: 4, top: 4),
+                  child: Text(
+                    presc.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black,
+                    ),
+                    textAlign: TextAlign.left,
+                  )),
+              Container(
+                  //width: 300,
+                  padding: const EdgeInsets.only(
+                      left: 4, bottom: 4, right: 4, top: 4),
+                  child: Text(
+                    (presc.totalAmount / presc.daySupply).toString() +
+                        ' ' +
+                        presc.unit,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[700],
+                    ),
+                    textAlign: TextAlign.left,
+                  )),
+            ]),
+            Column(children: [
+              logButton,
+            ]),
+            /*
+            SizedBox(
+              height: 30,
+              width: 30,
+              child: IconButton(
+                  icon: pinIcon,
+                  onPressed: () {
+                    presc.pinned = !presc.pinned;
+                    userdbHelper.insertOrUpdatePrescription(presc);
+                    setState(() {
+                      prescriptions = userdbHelper.getPrescriptions();
+                      pinnedLoggedPrescriptions =
+                          getPinnedLoggedPrescriptions();
+                      pinnedUnloggedPrescriptions =
+                          getPinnedUnloggedPrescriptions();
+                    });
+                  }),
+            ),
+            */
+            //logButton,
+          ]));
+    });
+  }
 }
