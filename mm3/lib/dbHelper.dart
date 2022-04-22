@@ -85,4 +85,68 @@ class DatabaseHelper {
               ['LISTING_RECORD_CERTIFIED_THROUGH']);
     });
   }
+
+  Future<List<Drug>> getRecentDrugs() async {
+    final db = await instance.database;
+    List<Map<String, dynamic>> medlist =
+        await db.rawQuery('SELECT * from drugs LIMIT 16 OFFSET 200');
+    return List.generate(medlist.length, (i) {
+      return Drug(
+          id: medlist[i]['PRODUCTID'],
+          prodNDC: medlist[i]['PRODUCTNDC'],
+          prodTypeName: medlist[i]['PRODUCTTYPENAME'],
+          proprietaryName: medlist[i]['PROPRIETARYNAME'],
+          proprietaryNameSuffix: medlist[i]['PROPRIETARYNAMESUFFIX'],
+          nonproprietaryName: medlist[i]['NONPROPRIETARYNAME'],
+          dosageFormName: medlist[i]['DOSAGEFORMNAME'],
+          routeName: medlist[i]['ROUTENAME'],
+          startMarketDate: medlist[i]['STARTMARKETINGDATE'],
+          endMarketDate: medlist[i]['ENDMARKETINGDATE'],
+          marketCatName: medlist[i]['MARKETINGCATEGORYNAME'],
+          applicationNum: medlist[i]['APPLICATIONNUMBER'],
+          labelerName: medlist[i]['LABELERNAME'],
+          substanceName: medlist[i]['SUBSTANCENAME'],
+          strengthNumber: medlist[i]['ACTIVE_NUMERATOR_STRENGTH'],
+          strengthUnit: medlist[i]['ACTIVE_INGRED_UNIT'],
+          pharmClasses: medlist[i]['PHARM_CLASSES'],
+          deaSchedule: medlist[i]['DEASCHEDULE'],
+          ndcExcludeFlag: medlist[i]['NDC_EXCLUDE_FLAG'],
+          listingRecordCertifiedThrough: medlist[i]
+              ['LISTING_RECORD_CERTIFIED_THROUGH']);
+    });
+  }
+
+  Future<List<Drug>> searchDrugs(search) async {
+    final db = await instance.database;
+    List<Map<String, dynamic>> medlist = await db.rawQuery(
+        'SELECT * from drugs WHERE LOWER(PROPRIETARYNAME) like LOWER(\"%' +
+            search +
+            '%\") OR LOWER(NONPROPRIETARYNAME) like LOWER(\"%' +
+            search +
+            '%\")');
+    return List.generate(medlist.length, (i) {
+      return Drug(
+          id: medlist[i]['PRODUCTID'],
+          prodNDC: medlist[i]['PRODUCTNDC'],
+          prodTypeName: medlist[i]['PRODUCTTYPENAME'],
+          proprietaryName: medlist[i]['PROPRIETARYNAME'],
+          proprietaryNameSuffix: medlist[i]['PROPRIETARYNAMESUFFIX'],
+          nonproprietaryName: medlist[i]['NONPROPRIETARYNAME'],
+          dosageFormName: medlist[i]['DOSAGEFORMNAME'],
+          routeName: medlist[i]['ROUTENAME'],
+          startMarketDate: medlist[i]['STARTMARKETINGDATE'],
+          endMarketDate: medlist[i]['ENDMARKETINGDATE'],
+          marketCatName: medlist[i]['MARKETINGCATEGORYNAME'],
+          applicationNum: medlist[i]['APPLICATIONNUMBER'],
+          labelerName: medlist[i]['LABELERNAME'],
+          substanceName: medlist[i]['SUBSTANCENAME'],
+          strengthNumber: medlist[i]['ACTIVE_NUMERATOR_STRENGTH'],
+          strengthUnit: medlist[i]['ACTIVE_INGRED_UNIT'],
+          pharmClasses: medlist[i]['PHARM_CLASSES'],
+          deaSchedule: medlist[i]['DEASCHEDULE'],
+          ndcExcludeFlag: medlist[i]['NDC_EXCLUDE_FLAG'],
+          listingRecordCertifiedThrough: medlist[i]
+              ['LISTING_RECORD_CERTIFIED_THROUGH']);
+    });
+  }
 }
